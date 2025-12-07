@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DJ HYPEMAN DEALER - Music Album Manager</title>
+  <style>
+    :root{
+      --bg:#ffffff; --muted:#6b7280; --accent:#1a73e8; --card:#f8fafc;
+      --glass: rgba(26,115,232,0.06);
+      font-family: Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#fff,#f7fbff);color:#0f1724;padding:18px}
+    .wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:18px}
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header h1{margin:0;font-size:18px}
+    header .sub{color:var(--muted);font-size:13px}
+    .panel{background:var(--card);border-radius:12px;padding:14px;border:1px solid rgba(15,23,36,0.04)}
+    .form-row{display:flex;gap:8px;align-items:center}
+    label{font-size:13px;color:var(--muted)}
+    input[type="text"], select, textarea {width:100%;padding:10px;border-radius:8px;border:1px solid rgba(15,23,36,0.06);background:white}
+    input[type="file"]{padding:6px}
+    button{background:var(--accent);color:white;border:none;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+    button.ghost{background:transparent;border:1px solid rgba(15,23,36,0.06);color:var(--muted)}
+    .left{min-height:520px;display:flex;flex-direction:column;gap:12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .album-card{background:white;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;border:1px solid rgba(15,23,36,0.03)}
+    .album-cover{width:100%;aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--glass);overflow:hidden}
+    .album-cover img{width:100%;height:100%;object-fit:cover;display:block}
+    .title{font-weight:700;font-size:14px}
+    .meta{color:var(--muted);font-size:13px}
+    .right{display:flex;flex-direction:column;gap:12px}
+    .track-list{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow:auto;padding-right:6px}
+    .track{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px;border-radius:8px;background:rgba(15,23,36,0.01)}
+    .small{font-size:13px;color:var(--muted)}
+    .cover-preview{width:110px;height:110px;border-radius:8px;overflow:hidden;background:var(--glass);display:flex;align-items:center;justify-content:center}
+    footer{grid-column:1/-1;color:var(--muted);text-align:center;font-size:13px;padding-top:6px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .icon-btn{background:transparent;border:none;cursor:pointer;color:var(--muted);font-size:18px}
+    .hidden{display:none}
+    @media (max-width:980px){.wrap{grid-template-columns:1fr;padding:12px} .right{order:2}}
+    /* default album icon (vinyl) */
+    .vinyl{width:64px;height:64px;display:block}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>DJ HYPEMAN DEALER</h1>
+        <div class="sub">Upload and display your music albums — local-only demo</div>
+      </div>
+      <div class="controls">
+        <button id="newAlbumBtn">+ New Album</button>
+        <button id="exportBtn" class="ghost">Export JSON</button>
+        <button id="importBtn" class="ghost">Import JSON</button>
+        <input id="importFile" type="file" accept=".json" class="hidden">
+      </div>
+    </header>
+
+    <!-- LEFT: Gallery & Editor -->
+    <section class="left">
+      <div class="panel" id="galleryPanel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <strong id="albumCount">0 albums</strong>
+            <div class="small muted">Albums stored in your browser (localStorage)</div>
+          </div>
+          <div class="small muted">DJ HYPEMAN DEALER</div>
+        </div>
+
+        <div id="albumGrid" class="grid" aria-live="polite">
+          <!-- album cards injected here -->
+          <div class="small muted">No albums yet. Create one with the editor below.</div>
+        </div>
+      </div>
+
+      <div class="panel" id="editorPanel">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="cover-preview" id="coverPreview"><svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg></div>
+          <div style="flex:1">
+            <div style="display:flex;gap:8px">
+              <input id="albumTitle" type="text" placeholder="Album title">
+              <input id="albumArtist" type="text" placeholder="Artist (optional)" style="width:220px">
+            </div>
+            <textarea id="albumDesc" rows="2" placeholder="Description (optional)" style="margin-top:8px"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+              <label class="ghost" style="padding:8px 10px;display:inline-block;cursor:pointer">
+                Choose cover
+                <input id="coverInput" type="file" accept="image/*" style="display:none">
+              </label>
+              <label class="ghost" style="padding:8px 10px;display:inline-block;cursor:pointer">
+                Add tracks
+                <input id="tracksInput" type="file" accept="audio/*" multiple style="display:none">
+              </label>
+              <button id="saveAlbumBtn">Save Album</button>
+              <button id="cancelEditBtn" class="ghost">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small muted">Tracks</div>
+          <div id="editorTrackList" class="track-list">
+            <div class="small muted">No tracks yet</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Selected / Player -->
+    <aside class="right">
+      <div class="panel">
+        <strong>Selected Album</strong>
+        <div class="small muted" id="selectedMeta">No album selected</div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+          <div class="album-cover" id="sideCover"><svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg></div>
+          <div style="flex:1">
+            <div id="sideTitle" style="font-weight:700">—</div>
+            <div id="sideArtist" class="small muted">—</div>
+            <div id="sideCount" class="small muted" style="margin-top:6px">0 tracks</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button id="playSelected" disabled>Open Player</button>
+          <button id="editSelected" class="ghost" disabled>Edit</button>
+          <button id="deleteSelected" class="ghost" disabled style="color:#b91c1c;border-color:rgba(185,28,28,0.06)">Delete</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong>Player</strong>
+        <div class="small muted" style="margin-top:6px">Play tracks from the selected album</div>
+
+        <div style="margin-top:10px">
+          <div id="playerArea" class="small muted">No album open</div>
+          <audio id="audio" controls style="width:100%;margin-top:8px"></audio>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong>Tips</strong>
+        <div class="small muted" style="margin-top:6px">
+          • The page stores albums locally (in your browser). <br>
+          • Use Export to backup as JSON. Import to restore. <br>
+          • Audio files are converted to base64 for persistent storage.
+        </div>
+      </div>
+    </aside>
+
+    <footer>DJ HYPEMAN DEALER • Local demo — no server upload included</footer>
+  </div>
+
+  <script>
+    // Simple local album manager with album icon (cover image or vinyl svg)
+    const STORAGE_KEY = 'dj_hypeman_dealer_albums_v1';
+
+    // elements
+    const albumGrid = document.getElementById('albumGrid');
+    const albumCount = document.getElementById('albumCount');
+    const coverInput = document.getElementById('coverInput');
+    const tracksInput = document.getElementById('tracksInput');
+    const coverPreview = document.getElementById('coverPreview');
+    const albumTitle = document.getElementById('albumTitle');
+    const albumArtist = document.getElementById('albumArtist');
+    const albumDesc = document.getElementById('albumDesc');
+    const editorTrackList = document.getElementById('editorTrackList');
+    const saveAlbumBtn = document.getElementById('saveAlbumBtn');
+    const newAlbumBtn = document.getElementById('newAlbumBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const selectedMeta = document.getElementById('selectedMeta');
+    const sideCover = document.getElementById('sideCover');
+    const sideTitle = document.getElementById('sideTitle');
+    const sideArtist = document.getElementById('sideArtist');
+    const sideCount = document.getElementById('sideCount');
+    const editSelected = document.getElementById('editSelected');
+    const deleteSelected = document.getElementById('deleteSelected');
+    const playSelected = document.getElementById('playSelected');
+    const playerArea = document.getElementById('playerArea');
+    const audio = document.getElementById('audio');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFile = document.getElementById('importFile');
+
+    let albums = {}; // id -> album
+    let editingId = null;
+    let selectedId = null;
+    let editorCoverDataUrl = null;
+    let editorTracks = []; // {id,name,dataURL,fileName,tempBlobUrl}
+
+    // utilities
+    const uid = ()=> 'id_'+Math.random().toString(36).slice(2,10);
+    const escape = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    
+    function saveToStorage(){ 
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(albums)); 
+      renderGallery(); 
+      renderSidebar(); 
+    }
+    
+    function loadFromStorage(){ 
+      try { 
+        albums = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; 
+      } catch(e){ 
+        albums = {}; 
+      } 
+    }
+
+    // Convert File to Base64 Data URL
+    function fileToDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Convert Data URL to Blob URL for audio playback
+    function dataURLToBlobURL(dataURL) {
+      try {
+        // Extract the base64 data and mime type
+        const parts = dataURL.split(',');
+        if (parts.length < 2) return null;
+        
+        const mimeMatch = dataURL.match(/^data:(.*?);base64,/);
+        if (!mimeMatch) return null;
+        
+        const mimeType = mimeMatch[1];
+        const base64Data = parts[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        return URL.createObjectURL(blob);
+      } catch(e) {
+        console.error('Error converting data URL to blob URL:', e);
+        return null;
+      }
+    }
+
+    // Clean up temporary blob URLs
+    function cleanupTempBlobUrls() {
+      editorTracks.forEach(track => {
+        if (track.tempBlobUrl) {
+          try {
+            URL.revokeObjectURL(track.tempBlobUrl);
+          } catch(e) {}
+        }
+      });
+    }
+
+    // render gallery
+    function renderGallery(){
+      albumGrid.innerHTML = '';
+      const list = Object.values(albums).sort((a,b)=>b.createdAt - a.createdAt);
+      albumCount.textContent = `${list.length} album${list.length !== 1 ? 's' : ''}`;
+      
+      if(!list.length){
+        albumGrid.innerHTML = '<div class="small muted">No albums yet. Create one with the editor below.</div>';
+        return;
+      }
+      
+      list.forEach(alb=>{
+        const card = document.createElement('button');
+        card.className = 'album-card';
+        card.innerHTML = `
+          <div class="album-cover">${alb.coverDataUrl ? `<img src="${alb.coverDataUrl}" alt="">` : `<svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg>`}</div>
+          <div class="title">${escape(alb.title)}</div>
+          <div class="meta">${escape(alb.artist||'DJ HYPEMAN DEALER')} · ${alb.tracks.length} track${alb.tracks.length!==1?'s':''}</div>
+        `;
+        card.addEventListener('click', ()=> selectAlbum(alb.id));
+        albumGrid.appendChild(card);
+      });
+    }
+
+    // render sidebar selected
+    function renderSidebar(){
+      if(!selectedId || !albums[selectedId]){
+        sideCover.innerHTML = `<svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg>`;
+        sideTitle.textContent = '—';
+        sideArtist.textContent = '—';
+        sideCount.textContent = '0 tracks';
+        selectedMeta.textContent = 'No album selected';
+        editSelected.disabled = true;
+        deleteSelected.disabled = true;
+        playSelected.disabled = true;
+        return;
+      }
+      
+      const alb = albums[selectedId];
+      sideCover.innerHTML = alb.coverDataUrl ? `<img src="${alb.coverDataUrl}" alt="">` : `<svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg>`;
+      sideTitle.textContent = alb.title;
+      sideArtist.textContent = alb.artist || 'DJ HYPEMAN DEALER';
+      sideCount.textContent = `${alb.tracks.length} track${alb.tracks.length!==1?'s':''}`;
+      selectedMeta.textContent = alb.desc || '—';
+      editSelected.disabled = false;
+      deleteSelected.disabled = false;
+      playSelected.disabled = false;
+    }
+
+    function selectAlbum(id){
+      selectedId = id;
+      renderSidebar();
+      openPlayer(id);
+    }
+
+    // editor functions
+    function resetEditor(){
+      editingId = null;
+      editorCoverDataUrl = null;
+      
+      // Clean up temporary blob URLs
+      cleanupTempBlobUrls();
+      editorTracks = [];
+      
+      albumTitle.value = '';
+      albumArtist.value = '';
+      albumDesc.value = '';
+      coverPreview.innerHTML = `<svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg>`;
+      editorTrackList.innerHTML = `<div class="small muted">No tracks yet</div>`;
+    }
+
+    function openEditorForAlbum(id){
+      const alb = albums[id];
+      if(!alb) return;
+      
+      editingId = id;
+      albumTitle.value = alb.title;
+      albumArtist.value = alb.artist || '';
+      albumDesc.value = alb.desc || '';
+      editorCoverDataUrl = alb.coverDataUrl || null;
+      coverPreview.innerHTML = editorCoverDataUrl ? `<img src="${editorCoverDataUrl}" alt="">` : `<svg class="vinyl" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#e6eef6"/><circle cx="12" cy="12" r="4" fill="#1a73e8"/></svg>`;
+      
+      // Load tracks with temporary blob URLs for preview
+      editorTracks = alb.tracks.map(track => ({
+        ...track,
+        tempBlobUrl: dataURLToBlobURL(track.src)
+      }));
+      
+      renderEditorTracks();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    function renderEditorTracks(){
+      editorTrackList.innerHTML = '';
+      if(!editorTracks.length){
+        editorTrackList.innerHTML = `<div class="small muted">No tracks yet</div>`;
+        return;
+      }
+      
+      editorTracks.forEach((t,i)=>{
+        const div = document.createElement('div');
+        div.className = 'track';
+        div.innerHTML = `
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="width:28px">${i+1}</div>
+            <div>${escape(t.name)}</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ghost" data-i="${i}" data-action="play">▶</button>
+            <button class="ghost" data-i="${i}" data-action="rm">✖</button>
+          </div>
+        `;
+        editorTrackList.appendChild(div);
+      });
+      
+      // attach actions
+      editorTrackList.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          const i = Number(btn.dataset.i);
+          const action = btn.dataset.action;
+          
+          if(action === 'rm'){ 
+            if(editorTracks[i] && editorTracks[i].tempBlobUrl) {
+              try {
+                URL.revokeObjectURL(editorTracks[i].tempBlobUrl);
+              } catch(e) {}
+            }
+            editorTracks.splice(i,1); 
+            renderEditorTracks(); 
+          }
+          
+          if(action === 'play'){ 
+            playTempTrack(editorTracks[i]); 
+          }
+        });
+      });
+    }
+
+    function playTempTrack(track){
+      if(!track) return;
+      
+      // Clean up previous blob URL
+      if(audio._prevBlobUrl) {
+        try {
+          URL.revokeObjectURL(audio._prevBlobUrl);
+        } catch(e) {}
+      }
+      
+      if(track.tempBlobUrl) {
+        // Use temporary blob URL
+        audio.src = track.tempBlobUrl;
+        audio._prevBlobUrl = track.tempBlobUrl;
+      } else if(track.src && track.src.startsWith('data:')) {
+        // Convert data URL to blob URL
+        const blobUrl = dataURLToBlobURL(track.src);
+        if(blobUrl) {
+          audio.src = blobUrl;
+          audio._prevBlobUrl = blobUrl;
+        }
+      } else {
+        audio.src = '';
+      }
+      
+      audio.play().catch(()=>{});
+      playerArea.textContent = `${track.name} — playing`;
+    }
+
+    // events
+    coverInput.addEventListener('change', async (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      try{
+        const d = await fileToDataURL(f);
+        editorCoverDataUrl = d;
+        coverPreview.innerHTML = `<img src="${d}" alt="">`;
+      } catch(err){ 
+        console.warn(err); 
+        alert('Failed to read cover image'); 
+      }
+      coverInput.value = '';
+    });
+
+    tracksInput.addEventListener('change', async (e)=>{
+      const files = Array.from(e.target.files || []);
+      if(!files.length) return;
+      
+      for(const f of files) {
+        try {
+          const dataURL = await fileToDataURL(f);
+          const tempBlobUrl = URL.createObjectURL(f);
+          
+          editorTracks.push({ 
+            id: uid(), 
+            name: f.name.replace(/\.[^/.]+$/,''), 
+            src: dataURL, // Store as data URL
+            fileName: f.name,
+            tempBlobUrl: tempBlobUrl // Temporary for preview
+          });
+        } catch(err) {
+          console.error('Failed to process file:', f.name, err);
+          alert(`Failed to process file: ${f.name}`);
+        }
+      }
+      
+      renderEditorTracks();
+      tracksInput.value = '';
+    });
+
+    saveAlbumBtn.addEventListener('click', async ()=>{
+      const title = (albumTitle.value || 'Untitled').trim();
+      const artist = (albumArtist.value || 'DJ HYPEMAN DEALER').trim();
+      const desc = (albumDesc.value || '').trim();
+      
+      if(!editorTracks.length){ 
+        if(!confirm('Save album with 0 tracks?')) return; 
+      }
+      
+      // Prepare tracks for storage (remove tempBlobUrl)
+      const tracksForStorage = editorTracks.map(t => ({
+        id: t.id,
+        name: t.name,
+        src: t.src, // This is the data URL
+        fileName: t.fileName
+      }));
+      
+      if(editingId){
+        albums[editingId].title = title;
+        albums[editingId].artist = artist;
+        albums[editingId].desc = desc;
+        albums[editingId].coverDataUrl = editorCoverDataUrl;
+        albums[editingId].tracks = tracksForStorage;
+      } else {
+        const id = uid();
+        albums[id] = { 
+          id, 
+          title, 
+          artist, 
+          desc, 
+          coverDataUrl: editorCoverDataUrl, 
+          tracks: tracksForStorage, 
+          createdAt: Date.now() 
+        };
+        selectedId = id;
+      }
+      
+      // Clean up temporary blob URLs
+      cleanupTempBlobUrls();
+      
+      saveToStorage();
+      resetEditor();
+    });
+
+    newAlbumBtn.addEventListener('click', ()=> { 
+      resetEditor(); 
+      window.scrollTo({top:0,behavior:'smooth'}); 
+    });
+
+    cancelEditBtn.addEventListener('click', () => {
+      resetEditor();
+    });
+
+    // select/edit/delete from sidebar
+    editSelected.addEventListener('click', ()=> { 
+      if(selectedId) openEditorForAlbum(selectedId); 
+    });
+    
+    deleteSelected.addEventListener('click', ()=> {
+      if(!selectedId || !albums[selectedId]) return;
+      if(!confirm('Delete this album?')) return;
+      delete albums[selectedId];
+      selectedId = null;
+      saveToStorage();
+    });
+
+    playSelected.addEventListener('click', ()=> { 
+      if(selectedId) openPlayer(selectedId); 
+    });
+
+    // player
+    function openPlayer(id){
+      const alb = albums[id];
+      if(!alb) { 
+        playerArea.textContent = 'No album open'; 
+        audio.src = ''; 
+        return; 
+      }
+      
+      if(!alb.tracks.length){ 
+        playerArea.textContent = 'No tracks in album'; 
+        audio.src = ''; 
+        return; 
+      }
+      
+      // Clean up previous blob URL
+      if(audio._prevBlobUrl) {
+        try {
+          URL.revokeObjectURL(audio._prevBlobUrl);
+        } catch(e) {}
+        audio._prevBlobUrl = null;
+      }
+      
+      // Load first track
+      const firstTrack = alb.tracks[0];
+      if(firstTrack.src && firstTrack.src.startsWith('data:')) {
+        const blobUrl = dataURLToBlobURL(firstTrack.src);
+        if(blobUrl) {
+          audio.src = blobUrl;
+          audio._prevBlobUrl = blobUrl;
+          audio.play().catch(()=>{});
+        }
+      } else {
+        audio.src = firstTrack.src || '';
+      }
+      
+      playerArea.innerHTML = `<div style="font-weight:700">${escape(alb.title)}</div><div class="small muted">${escape(alb.artist)}</div>`;
+    }
+
+    // album selection helper
+    function selectFirstIfNone(){
+      const keys = Object.keys(albums);
+      if(keys.length && !selectedId){ 
+        selectedId = keys[0]; 
+        renderSidebar();
+      }
+    }
+
+    // export/import
+    exportBtn.addEventListener('click', ()=>{
+      const data = JSON.stringify(albums, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; 
+      a.download = `dj_hypeman_dealer_albums_${new Date().toISOString().slice(0,10)}.json`; 
+      document.body.appendChild(a); 
+      a.click();
+      setTimeout(()=>{ 
+        URL.revokeObjectURL(url); 
+        a.remove(); 
+      }, 5000);
+    });
+
+    importBtn.addEventListener('click', ()=> importFile.click());
+    
+    importFile.addEventListener('change', async (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      try{
+        const txt = await f.text();
+        const parsed = JSON.parse(txt);
+        // merge - keep existing unless id collision
+        albums = {...albums, ...parsed};
+        saveToStorage();
+        alert('Import complete.');
+      } catch(err){ 
+        console.error('Import error:', err);
+        alert('Invalid JSON file'); 
+      }
+      importFile.value = '';
+    });
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      // Clean up any remaining blob URLs
+      if (audio._prevBlobUrl) {
+        try {
+          URL.revokeObjectURL(audio._prevBlobUrl);
+        } catch(e) {}
+      }
+      cleanupTempBlobUrls();
+    });
+
+    // helpers & init
+    loadFromStorage();
+    renderGallery();
+    selectFirstIfNone();
+    renderSidebar();
+
+    // quick keyboard play/pause
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){
+        e.preventDefault();
+        if(audio.src){ 
+          if(audio.paused) audio.play(); 
+          else audio.pause(); 
+        }
+      }
+    });
+  </script>
+</body>
+</html>
